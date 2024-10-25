@@ -94,7 +94,7 @@ def mostrar_imagenes(titulo, imagenes_por_verdura):
 
 if __name__ == "__main__":
     # Ruta al directorio de imágenes
-    ruta_base = r'D:\my_google_drive\imagenes_ia\Imagenes'
+    ruta_base = r'../anexos/imagenes_mias'
     carpetas = ['berenjena', 'camote', 'choclo', 'papa', 'zanahoria']
 
     root = tk.Tk()
