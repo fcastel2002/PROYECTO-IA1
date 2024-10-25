@@ -1,5 +1,6 @@
 import os
 import cv2
+import numpy as np
 import tkinter as tk
 from tkinter import Label
 from PIL import Image, ImageTk
@@ -25,13 +26,22 @@ class ProcesadorImagen:
                 gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
             else:
                 gris = self.imagen
-            self.imagen = cv2.Canny(gris, 80, 200)
+            # Ignorar los bordes de la imagen
+            gris[0:25, :] = 255
+            gris[-25:, :] = 255
+            gris[:, 0:25] = 255
+            gris[:, -25:] = 255
+            _, umbral = cv2.threshold(gris, 100, 255, cv2.THRESH_BINARY_INV)
+            contornos, _ = cv2.findContours(umbral, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            self.imagen = cv2.cvtColor(gris, cv2.COLOR_GRAY2RGB)
+            self.imagen = cv2.drawContours(self.imagen, contornos, -1, (0, 255, 0), 2)
+
         elif filtro_nombre == 'binarizada':
             if len(self.imagen.shape) == 3:  # Convertir a escala de grises si es necesario
                 gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
             else:
                 gris = self.imagen
-            _, self.imagen = cv2.threshold(gris, 140, 255, cv2.THRESH_BINARY)
+            _, self.imagen = cv2.threshold(gris, 130, 255, cv2.THRESH_BINARY_INV)
         elif filtro_nombre == 'gabor':
             kernel = cv2.getGaborKernel((21, 21), 8.0, 1.0, 10.0, 0.5, 0, ktype=cv2.CV_32F)
             self.imagen = cv2.filter2D(self.imagen, cv2.CV_8UC3, kernel)
@@ -59,6 +69,20 @@ class ProcesadorImagen:
             else:
                 gris = self.imagen
             self.imagen = cv2.Laplacian(gris, cv2.CV_64F).astype('uint8')
+        elif filtro_nombre == 'saturacion':
+            if len(self.imagen.shape) == 2:  # Convertir a 3 canales si es necesario
+                self.imagen = cv2.cvtColor(self.imagen, cv2.COLOR_GRAY2BGR)
+            hsv = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2HSV)
+            h, s, v = cv2.split(hsv)
+            s = cv2.add(s, 20)  # Aumentar la saturación
+            hsv = cv2.merge([h, s, v])
+            self.imagen = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        elif filtro_nombre == 'gamma':
+            from PIL import ImageEnhance
+            img_pil = Image.fromarray(cv2.cvtColor(self.imagen, cv2.COLOR_BGR2RGB))
+            enhancer = ImageEnhance.Brightness(img_pil)
+            img_pil = enhancer.enhance(1.2)  # Ajustar gamma a 1.5
+            self.imagen = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
         else:
             raise ValueError(f'Filtro "{filtro_nombre}" no reconocido')
 
@@ -95,7 +119,7 @@ def mostrar_imagenes(titulo, imagenes_por_verdura):
 if __name__ == "__main__":
     # Ruta al directorio de imágenes
     ruta_base = r'../anexos/imagenes_mias'
-    carpetas = ['berenjena', 'camote', 'choclo', 'papa', 'zanahoria']
+    carpetas = ['berenjena', 'camote', 'papa', 'zanahoria']
 
     root = tk.Tk()
     root.withdraw()  # Ocultar la ventana principal
@@ -112,8 +136,9 @@ if __name__ == "__main__":
         if not archivos:
             print(f'La carpeta {ruta_carpeta} está vacía.')
             continue
-
-        primer_imagen = os.path.join(ruta_carpeta, archivos[15])
+##
+        primer_imagen = os.path.join(ruta_carpeta, archivos[1])
+##
         imagen = cv2.imread(primer_imagen)
         if imagen is None:
             print(f'No se pudo leer la imagen {primer_imagen}.')
@@ -122,8 +147,8 @@ if __name__ == "__main__":
         # Crear instancia del procesador de imagen
         procesador = ProcesadorImagen(imagen)
         # Definir los filtros a aplicar
-        filtros_a_aplicar = ['morfologico']
-        # 'mediana', 'gaussiana' 'promediada', 'bilateral', 'gris', 'bordes', 'binarizada', 'gabor', 'box', 'nln', 'adaptMedian', 'morfologico', 'sobel', 'laplaciano'
+        filtros_a_aplicar = ['nln','gris','mediana','bordes']
+        # 'mediana', 'gaussiana' 'promediada', 'bilateral', 'gris', 'bordes', 'binarizada', 'gabor', 'box', 'nln', 'adaptMedian', 'morfologico', 'sobel', 'laplaciano', 'saturacion', 'gamma'
         # Aplicar los filtros
         imagenes_filtradas = procesador.aplicar_filtros(filtros_a_aplicar)
         # Agregar las imágenes filtradas a la lista
@@ -131,5 +156,5 @@ if __name__ == "__main__":
 
     # Mostrar todas las imágenes en una sola ventana
     mostrar_imagenes("Imágenes Filtradas", imagenes_por_verdura)
+    root.mainloop()  # Mantener la ventana principal viva para gestionar otras ventanas
 
-    root.mainloop()
