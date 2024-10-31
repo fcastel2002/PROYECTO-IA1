@@ -7,8 +7,10 @@ from PIL import Image, ImageTk
 
 class ProcesadorImagen:
     def __init__(self, imagen):
-        self.imagen_original = cv2.resize(imagen, (200, 200))
+        self.imagen_original = cv2.resize(imagen, (500, 500))
         self.imagen = self.imagen_original.copy()
+        self.fgbg = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=50, detectShadows=False)
+
 
     def aplicar_filtro(self, filtro_nombre):
         if filtro_nombre == 'gaussiana':
@@ -16,72 +18,87 @@ class ProcesadorImagen:
         elif filtro_nombre == 'promediada':
             self.imagen = cv2.blur(self.imagen, (2, 2))
         elif filtro_nombre == 'mediana':
-            self.imagen = cv2.medianBlur(self.imagen, 9)
+            self.imagen = cv2.medianBlur(self.imagen, 15)
         elif filtro_nombre == 'bilateral':
-            self.imagen = cv2.bilateralFilter(self.imagen, 10, 100, 75)
+            self.imagen = cv2.bilateralFilter(self.imagen, 11, 75, 75)
         elif filtro_nombre == 'gris':
             self.imagen = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
         elif filtro_nombre == 'bordes':
-            if len(self.imagen.shape) == 3:  # Convertir a escala de grises si es necesario
-                gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
-            else:
-                gris = self.imagen
-            # Ignorar los bordes de la imagen
-            gris[0:25, :] = 255
-            gris[-25:, :] = 255
-            gris[:, 0:25] = 255
-            gris[:, -25:] = 255
-            _, umbral = cv2.threshold(gris, 100, 255, cv2.THRESH_BINARY_INV)
-            contornos, _ = cv2.findContours(umbral, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            gris = self.imagen
+
+            #_, umbral = cv2.threshold(gris, 40, 255, cv2.THRESH_BINARY)
+          #  umbral = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 21, 6)
+            # Binarización adaptativa
+
+            # Encontrar todos los contornos
+
+            contornos, _ = cv2.findContours(gris, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Encontrar el contorno más grande por área
+            contorno_mas_grande = max(contornos, key=cv2.contourArea)
+
+            # Convertir la imagen a color para dibujar contornos
             self.imagen = cv2.cvtColor(gris, cv2.COLOR_GRAY2RGB)
-            self.imagen = cv2.drawContours(self.imagen, contornos, -1, (0, 255, 0), 2)
+
+            # Dibujar solo el contorno más grande
+            self.imagen = cv2.drawContours(self.imagen, [contorno_mas_grande], -1, (0, 255, 0), 2)
+
 
         elif filtro_nombre == 'binarizada':
-            if len(self.imagen.shape) == 3:  # Convertir a escala de grises si es necesario
-                gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
-            else:
-                gris = self.imagen
-            _, self.imagen = cv2.threshold(gris, 130, 255, cv2.THRESH_BINARY_INV)
+
+            gris = self.imagen
+            #_, self.imagen = cv2.threshold(gris, 130, 255, cv2.THRESH_BINARY_INV)
+            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
         elif filtro_nombre == 'gabor':
             kernel = cv2.getGaborKernel((21, 21), 8.0, 1.0, 10.0, 0.5, 0, ktype=cv2.CV_32F)
             self.imagen = cv2.filter2D(self.imagen, cv2.CV_8UC3, kernel)
+
         elif filtro_nombre == 'box':
             self.imagen = cv2.boxFilter(self.imagen, -1, (3, 3))
+
         elif filtro_nombre == 'nln':
-            self.imagen = cv2.fastNlMeansDenoisingColored(self.imagen, None, 10, 10, 3, 14)
+            self.imagen = cv2.fastNlMeansDenoisingColored(self.imagen, None, 15, 15, 6, 18)
+
         elif filtro_nombre == 'adaptMedian':
             # Implementación de un filtro de mediana adaptativa personalizado
             self.imagen = self._filtro_mediana_adaptativa(self.imagen)
+
         elif filtro_nombre == 'morfologico':
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_GRADIENT, kernel)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_CLOSE, kernel)
+
+        elif filtro_nombre == 'fondo':
+            self.imagen = self.fgbg.apply(self.imagen)
+
         elif filtro_nombre == 'sobel':
-            if len(self.imagen.shape) == 3:  # Convertir a escala de grises si es necesario
-                gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
-            else:
-                gris = self.imagen
+
+            gris = self.imagen
             sobelx = cv2.Sobel(gris, cv2.CV_64F, 1, 0, ksize=5)
             sobely = cv2.Sobel(gris, cv2.CV_64F, 0, 1, ksize=5)
             self.imagen = cv2.magnitude(sobelx, sobely).astype('uint8')
+
         elif filtro_nombre == 'laplaciano':
-            if len(self.imagen.shape) == 3:  # Convertir a escala de grises si es necesario
-                gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
-            else:
-                gris = self.imagen
+
+            gris = self.imagen
             self.imagen = cv2.Laplacian(gris, cv2.CV_64F).astype('uint8')
-        elif filtro_nombre == 'saturacion':
-            if len(self.imagen.shape) == 2:  # Convertir a 3 canales si es necesario
-                self.imagen = cv2.cvtColor(self.imagen, cv2.COLOR_GRAY2BGR)
+
+        elif filtro_nombre == 'sombras':
             hsv = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2HSV)
             h, s, v = cv2.split(hsv)
-            s = cv2.add(s, 20)  # Aumentar la saturación
+
+            # Procesar el canal V para minimizar sombrasc`
+            v = cv2.GaussianBlur(v, (7, 7), 9)
+            # Combinar los canales y convertir de nuevo a BGR
             hsv = cv2.merge([h, s, v])
             self.imagen = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
         elif filtro_nombre == 'gamma':
             from PIL import ImageEnhance
             img_pil = Image.fromarray(cv2.cvtColor(self.imagen, cv2.COLOR_BGR2RGB))
             enhancer = ImageEnhance.Brightness(img_pil)
-            img_pil = enhancer.enhance(1.2)  # Ajustar gamma a 1.5
+            img_pil = enhancer.enhance(2)  # Ajustar gamma a 1.5
             self.imagen = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
         else:
             raise ValueError(f'Filtro "{filtro_nombre}" no reconocido')
@@ -106,11 +123,12 @@ def mostrar_imagenes(titulo, imagenes_por_verdura):
     ventana.title(titulo)
     for row, imagenes in enumerate(imagenes_por_verdura):
         for col, img in enumerate(imagenes):
-            if len(img.shape) == 2:  # Si la imagen es en escala de grises o binarizada
-                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            img_resized = cv2.resize(img, (200, 200))
+            if len(img_resized.shape) == 2:  # Si la imagen es en escala de grises o binarizada
+                img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
             else:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convertir de BGR a RGB
-            img_pil = Image.fromarray(img)
+                img_resized = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)  # Convertir de BGR a RGB
+            img_pil = Image.fromarray(img_resized)
             img_tk = ImageTk.PhotoImage(image=img_pil)
             label = Label(ventana, image=img_tk)
             label.image = img_tk
@@ -147,7 +165,7 @@ if __name__ == "__main__":
         # Crear instancia del procesador de imagen
         procesador = ProcesadorImagen(imagen)
         # Definir los filtros a aplicar
-        filtros_a_aplicar = ['nln','gris','mediana','bordes']
+        filtros_a_aplicar = ['bilateral','sombras','gris','binarizada','morfologico']
         # 'mediana', 'gaussiana' 'promediada', 'bilateral', 'gris', 'bordes', 'binarizada', 'gabor', 'box', 'nln', 'adaptMedian', 'morfologico', 'sobel', 'laplaciano', 'saturacion', 'gamma'
         # Aplicar los filtros
         imagenes_filtradas = procesador.aplicar_filtros(filtros_a_aplicar)
