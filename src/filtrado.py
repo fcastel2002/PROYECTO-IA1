@@ -49,7 +49,7 @@ class ProcesadorImagen:
 
             gris = self.imagen
             #_, self.imagen = cv2.threshold(gris, 130, 255, cv2.THRESH_BINARY_INV)
-            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 29, 4)
+            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 17, 2)
 
         elif filtro_nombre == 'gabor':
             kernel = cv2.getGaborKernel((21, 21), 8.0, 1.0, 10.0, 0.5, 0, ktype=cv2.CV_32F)
@@ -59,15 +59,15 @@ class ProcesadorImagen:
             self.imagen = cv2.boxFilter(self.imagen, -1, (3, 3))
 
         elif filtro_nombre == 'nln':
-            self.imagen = cv2.fastNlMeansDenoisingColored(self.imagen, None, 15, 5, 3, 14)
+            self.imagen = cv2.fastNlMeansDenoisingColored(self.imagen, None, 15, 5, 6, 18)
 
         elif filtro_nombre == 'adaptMedian':
             # Implementación de un filtro de mediana adaptativa personalizado
             self.imagen = self._filtro_mediana_adaptativa(self.imagen)
 
         elif filtro_nombre == 'morfologico':
-            kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (7, 7))
-            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_GRADIENT, kernel)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_CLOSE, kernel)
 
         elif filtro_nombre == 'fondo':
             self.imagen = self.fgbg.apply(self.imagen)
@@ -93,10 +93,6 @@ class ProcesadorImagen:
             # Combinar los canales y convertir de nuevo a BGR
             hsv = cv2.merge([h, s, v])
             self.imagen = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        elif filtro_nombre == 'mascaraG':
-            imagen_gris = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
-            mascara = cv2.adaptiveThreshold(imagen_gris, 200, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,21,2)
-            self.imagen = cv2.bitwise_and(self.imagen, self.imagen, mask=mascara)
 
         elif filtro_nombre == 'gamma':
             from PIL import ImageEnhance
@@ -104,24 +100,8 @@ class ProcesadorImagen:
             enhancer = ImageEnhance.Brightness(img_pil)
             img_pil = enhancer.enhance(1.5)  # Ajustar gamma a 1.5
             self.imagen = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-        elif filtro_nombre == 'saturacion':
-            hsv = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2HSV)
-            h, s, v = cv2.split(hsv)
-            s = cv2.add(s, 20)  # Aumentar la saturación
-            hsv = cv2.merge([h, s, v])
-            self.imagen = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
-        elif filtro_nombre == 'contraste':
-            lab = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2LAB)
-            l, a, b = cv2.split(lab)
-            clahe = cv2.createCLAHE(clipLimit=1.2, tileGridSize=(3, 3))
-            l = clahe.apply(l)
-            lab = cv2.merge([l, a, b])
-            self.imagen = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
         else:
             raise ValueError(f'Filtro "{filtro_nombre}" no reconocido')
-
 
     def _filtro_mediana_adaptativa(self, imagen):
         # Filtro de mediana adaptativa: en este ejemplo se implementa una mediana con ventana adaptativa simple
@@ -165,7 +145,7 @@ def guardar_imagenes_correctas(path, imagenes_por_verdura, carpetas,index):
 
 
 if __name__ == "__main__":
-    indice = 1
+    indice = 0
     root = tk.Tk()
     root.withdraw()  # Ocultar la ventana principal
     ventana_actual = None  # Variable para almacenar la ventana actual
@@ -177,7 +157,7 @@ if __name__ == "__main__":
         if ventana_actual is not None:
             ventana_actual.destroy()
 
-        ruta_base = r'../anexos/imagenes_correctas'
+        ruta_base = r'../anexos/imagenes_mias'
         carpetas = ['berenjena', 'camote', 'papa', 'zanahoria']
 
         imagenes_por_verdura = []
@@ -209,6 +189,9 @@ if __name__ == "__main__":
         # Mostrar todas las imágenes en una nueva ventana y guardar la referencia
         ventana_actual = mostrar_imagenes("Imágenes Filtradas", imagenes_por_verdura)
         root.update()
+        if(choice == 'S'):
+            guardar_imagenes_correctas(r'../anexos/imagenes_correctas', imagenes_por_verdura, carpetas,indice)
+
 
     root.mainloop()
 
