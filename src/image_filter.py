@@ -18,7 +18,7 @@ class ProcesadorImagen:
         elif filtro_nombre == 'promediada':
             self.imagen = cv2.blur(self.imagen, (2, 2))
         elif filtro_nombre == 'mediana':
-            self.imagen = cv2.medianBlur(self.imagen, 15)
+            self.imagen = cv2.medianBlur(self.imagen, 5)
         elif filtro_nombre == 'bilateral':
             self.imagen = cv2.bilateralFilter(self.imagen, 11, 75, 75)
         elif filtro_nombre == 'gris':
@@ -42,7 +42,7 @@ class ProcesadorImagen:
             self.imagen = cv2.cvtColor(gris, cv2.COLOR_GRAY2RGB)
 
             # Dibujar solo el contorno más grande
-            self.imagen = cv2.drawContours(self.imagen, [contorno_mas_grande], -1, (0, 255, 0), 2)
+            self.imagen = cv2.drawContours(self.imagen, [contorno_mas_grande], -1, (0, 255, 0), 4)
 
 
         elif filtro_nombre == 'binarizada':
@@ -66,8 +66,8 @@ class ProcesadorImagen:
             self.imagen = self._filtro_mediana_adaptativa(self.imagen)
 
         elif filtro_nombre == 'morfologico':
-            kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (7, 7))
-            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_GRADIENT, kernel)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 5))
+            self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_CLOSE, kernel)
 
         elif filtro_nombre == 'fondo':
             self.imagen = self.fgbg.apply(self.imagen)
@@ -102,7 +102,7 @@ class ProcesadorImagen:
             from PIL import ImageEnhance
             img_pil = Image.fromarray(cv2.cvtColor(self.imagen, cv2.COLOR_BGR2RGB))
             enhancer = ImageEnhance.Brightness(img_pil)
-            img_pil = enhancer.enhance(1.5)  # Ajustar gamma a 1.5
+            img_pil = enhancer.enhance(1.4)  # Ajustar gamma a 1.5
             self.imagen = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
         elif filtro_nombre == 'saturacion':
             hsv = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2HSV)
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 continue
 
             procesador = ProcesadorImagen(imagen)
-            filtros_a_aplicar = ['nln', 'gris', 'binarizada', 'morfologico', 'bordes']
+            filtros_a_aplicar = ['nln','mediana','gamma', 'gris', 'binarizada', 'morfologico', 'bordes']
             imagenes_filtradas = procesador.aplicar_filtros(filtros_a_aplicar)
             imagenes_por_verdura.append(imagenes_filtradas)
 
