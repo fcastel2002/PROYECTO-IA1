@@ -18,7 +18,7 @@ class ProcesadorImagen:
         elif filtro_nombre == 'promediada':
             self.imagen = cv2.blur(self.imagen, (2, 2))
         elif filtro_nombre == 'mediana':
-            self.imagen = cv2.medianBlur(self.imagen, 5)
+            self.imagen = cv2.medianBlur(self.imagen, 7)
         elif filtro_nombre == 'bilateral':
             self.imagen = cv2.bilateralFilter(self.imagen, 11, 75, 75)
         elif filtro_nombre == 'gris':
@@ -49,7 +49,7 @@ class ProcesadorImagen:
 
             gris = self.imagen
             #_, self.imagen = cv2.threshold(gris, 130, 255, cv2.THRESH_BINARY_INV)
-            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 29, 4)
+            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 3)
 
         elif filtro_nombre == 'gabor':
             kernel = cv2.getGaborKernel((21, 21), 8.0, 1.0, 10.0, 0.5, 0, ktype=cv2.CV_32F)
@@ -66,7 +66,7 @@ class ProcesadorImagen:
             self.imagen = self._filtro_mediana_adaptativa(self.imagen)
 
         elif filtro_nombre == 'morfologico':
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 5))
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
             self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_CLOSE, kernel)
 
         elif filtro_nombre == 'fondo':
@@ -143,7 +143,7 @@ def mostrar_imagenes(titulo, imagenes_por_verdura):
     ventana.title(titulo)
     for row, imagenes in enumerate(imagenes_por_verdura):
         for col, img in enumerate(imagenes):
-            img_resized = cv2.resize(img, (200, 200))
+            img_resized = cv2.resize(img, (100, 100))
             if len(img_resized.shape) == 2:
                 img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
             else:
@@ -169,10 +169,14 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Ocultar la ventana principal
     ventana_actual = None  # Variable para almacenar la ventana actual
-    choice = 'S'
-    while (choice != '\n'):
-        # Cierra la ventana anterior si existe
+    while True:
         choice = input("Presione 'S' para continuar o 'Enter' para salir: ").strip().upper()
+
+        if choice == '':
+            if ventana_actual is not None:
+                ventana_actual.destroy()
+            root.destroy()  # Cierra la ventana principal de Tkinter
+            break  # Salir del bucle si se presiona Enter
 
         if ventana_actual is not None:
             ventana_actual.destroy()
@@ -209,6 +213,4 @@ if __name__ == "__main__":
         # Mostrar todas las imágenes en una nueva ventana y guardar la referencia
         ventana_actual = mostrar_imagenes("Imágenes Filtradas", imagenes_por_verdura)
         root.update()
-
-    root.mainloop()
 
