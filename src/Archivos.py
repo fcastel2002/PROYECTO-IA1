@@ -25,11 +25,13 @@ def obtener_imagenes_por_verdura(ruta_base, carpetas, indice):
     return imagenes_por_verdura
 
 def crear_archivo_csv(ruta_archivo, encabezados):
-    with open(ruta_archivo, 'w', newline='') as archivo_csv:
-        escritor = csv.writer(archivo_csv)
-        escritor.writerow(encabezados)
+    if not os.path.exists(ruta_archivo):
+        with open(ruta_archivo, 'w', newline='') as archivo_csv:
+            escritor = csv.writer(archivo_csv)
+            escritor.writerow(encabezados)
 
 def agregar_fila_csv(ruta_archivo, datos):
     with open(ruta_archivo, 'a', newline='') as archivo_csv:
         escritor = csv.writer(archivo_csv)
         escritor.writerow(datos)
+            

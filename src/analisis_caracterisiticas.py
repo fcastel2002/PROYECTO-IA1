@@ -6,11 +6,11 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-data = pd.read_csv('momentos_hu.csv')
+data = pd.read_csv('momentos_hu2.csv')
 print(data.head())
 print(data.columns)
 data.columns = data.columns.str.strip()
-hu_momentos_columnas = [f'Hu{i+1}' for i in range(7)]
+hu_momentos_columnas = ['Hu2'] + ['Mean_B', 'Mean_G', 'Mean_R']
 missing_columns = [col for col in hu_momentos_columnas if col not in data.columns]
 if missing_columns:
     raise KeyError(f"Missing columns in the DataFrame: {missing_columns}")
@@ -23,6 +23,7 @@ X_scaled = scaler.fit_transform(X)
 pca = PCA(n_components=3)
 X_pca = pca.fit_transform(X_scaled)
 pca_df = pd.DataFrame(data=X_pca, columns=['PC1', 'PC2', 'PC3'])
+pca_df['Nombre'] = data['Nombre']  # Add class labels to the PCA dataframe
 
 print("Variancia explicada por cada componente:")
 for i, var in enumerate(pca.explained_variance_ratio_):
@@ -32,6 +33,22 @@ for i, var in enumerate(pca.explained_variance_ratio_):
 label_encoder = LabelEncoder()
 labels = label_encoder.fit_transform(data['Nombre'])
     
+# Calculate variance along each PC for each vegetable
+print("\nVariance along each Principal Component for each vegetable:")
+for vegetable in data['Nombre'].unique():
+    pc_variance = pca_df[pca_df['Nombre'] == vegetable][['PC1', 'PC2', 'PC3']].var()
+    print(f"{vegetable}:")
+    print(pc_variance)
+
+# Display feature loadings for PC1, PC2, and PC3
+feature_names = hu_momentos_columnas  # Original feature names
+
+print("\nFeature contributions to each Principal Component:")
+for i in range(3):
+    print(f"PC{i+1}:")
+    for feature, loading in zip(feature_names, pca.components_[i]):
+        print(f" {feature}: {loading:.4f}")
+    print()
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
