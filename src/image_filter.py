@@ -6,10 +6,14 @@ from tkinter import Label
 from PIL import Image, ImageTk
 from Archivos import *
 from Parametros import calcular_momentos_hu, guardar_momentos_hu
+import time  # Add this import
+import threading  # Add this import
+import sys  # Add this import
+import select  # Add this import
 
 class ProcesadorImagen:
     def __init__(self, imagen, etiqueta):
-        self.imagen_original = cv2.resize(imagen, (500, 500))
+        self.imagen_original = imagen
         self.imagen = self.imagen_original.copy()
         self.etiqueta = etiqueta
         self.fgbg = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=50, detectShadows=False)
@@ -32,14 +36,19 @@ class ProcesadorImagen:
 
             self.imagen = cv2.drawContours(self.imagen, [contorno_mas_grande], -1, (0, 255, 0), 4)
 
-            # Calcular y guardar momentos de Hu
-            hu_momentos = calcular_momentos_hu(contorno_mas_grande)
-            ruta_csv = 'momentos_hu.csv'
-            if not os.path.exists(ruta_csv):
-                encabezados = ['Etiqueta'] + [f'Hu{i+1}' for i in range(7)]
-                crear_archivo_csv(ruta_csv, encabezados)
-            guardar_momentos_hu(ruta_csv, self.etiqueta, hu_momentos)
+            # Apply mask to remove background
+            mask = np.zeros_like(gris)
+            cv2.drawContours(mask, [contorno_mas_grande], -1, 255, thickness=cv2.FILLED)
+            self.imagen = cv2.bitwise_and(self.imagen_original, self.imagen_original, mask=mask)
 
+            # # Calcular y guardar momentos de Hu
+            # hu_momentos = calcular_momentos_hu(contorno_mas_grande)
+            # ruta_csv = 'momentos_hu.csv'
+            # if not os.path.exists(ruta_csv):
+            #     encabezados = ['Etiqueta'] + [f'Hu{i+1}' for i in range(7)]
+            #     crear_archivo_csv(ruta_csv, encabezados)
+            # guardar_momentos_hu(ruta_csv, self.etiqueta, hu_momentos)
+           
         elif filtro_nombre == 'binarizada':
 
             gris = self.imagen
@@ -68,7 +77,7 @@ def mostrar_imagenes(titulo, imagenes_por_verdura):
     ventana.title(titulo)
     for row, imagenes in enumerate(imagenes_por_verdura):
         for col, img in enumerate(imagenes):
-            img_resized = cv2.resize(img, (100, 100))
+            img_resized = cv2.resize(img, (200, 200))
             if len(img_resized.shape) == 2:
                 img_resized = cv2.cvtColor(img_resized, cv2.COLOR_GRAY2RGB)
             else:
@@ -94,7 +103,10 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Ocultar la ventana principal
     ventana_actual = None  # Variable para almacenar la ventana actual
-    while True:
+
+    total_images = 12  # Total number of images in each folder
+
+    while indice <= total_images:
         if ventana_actual is not None:
             ventana_actual.destroy()
 
@@ -116,4 +128,10 @@ if __name__ == "__main__":
         # Mostrar todas las imágenes en una nueva ventana y guardar la referencia
         ventana_actual = mostrar_imagenes("Imágenes Filtradas", imagenes_por_verdura)
         root.update()
+
+        input("Enter para continuar...")
+
+
+
+
 
