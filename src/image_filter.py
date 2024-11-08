@@ -22,7 +22,7 @@ class ProcesadorImagen:
 
     def aplicar_filtro(self, filtro_nombre):
         if filtro_nombre == 'mediana':
-            self.imagen = cv2.medianBlur(self.imagen, 7)
+            self.imagen = cv2.medianBlur(self.imagen, 11)
         elif filtro_nombre == 'gris':
             self.imagen = cv2.cvtColor(self.imagen, cv2.COLOR_BGR2GRAY)
         elif filtro_nombre == 'bordes':
@@ -44,27 +44,17 @@ class ProcesadorImagen:
             
             # Apply 'saturacion' filter before calculating mean color
             self.aplicar_filtro('saturacion')
-            # Calculate mean color after increasing saturation
-            mean_color = calcular_color_promedio(self.imagen)
-
-        # Calcular y guardar momentos de Hu
-            hu_momentos = calcular_momentos_hu(contorno_mas_grande)
-            ruta_csv = 'momentos_hu.csv'
-                
-            encabezados = ['Nombre'] + ['Hu1','Hu3','Hu5'] + ['Mean_B', 'Mean_G', 'Mean_R']
             
-            guardar_momentos_hu(ruta_csv, self.etiqueta, hu_momentos, mean_color)
            
         elif filtro_nombre == 'binarizada':
 
             gris = self.imagen
-            self.imagen = cv2.adaptiveThreshold(gris, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 3)
-
+            self.imagen = cv2.threshold(gris, 120, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
         elif filtro_nombre == 'nln':
             self.imagen = cv2.fastNlMeansDenoisingColored(self.imagen, None, 15, 5, 3, 14)
 
         elif filtro_nombre == 'morfologico':
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
             self.imagen = cv2.morphologyEx(self.imagen, cv2.MORPH_CLOSE, kernel)
             self.imagen_pre_filtrada = self.imagen.copy()
 
@@ -124,7 +114,7 @@ if __name__ == "__main__":
     root.withdraw()  # Ocultar la ventana principal
     ventana_actual = None  # Variable para almacenar la ventana actual
 
-    total_images = 12  # Total number of images in each folder
+    total_images = 20  # Total number of images in each folder
 
     # Add this block to initialize the CSV file before processing begins
     ruta_csv = 'momentos_hu.csv'
@@ -154,7 +144,7 @@ if __name__ == "__main__":
         imagenes_por_verdura = []
         for imagen, etiqueta in zip(imagenes_originales, carpetas):
             procesador = ProcesadorImagen(imagen, etiqueta)
-            filtros_a_aplicar = ['nln', 'gris', 'binarizada', 'morfologico', 'bordes']
+            filtros_a_aplicar = ['nln','mediana', 'gris', 'binarizada', 'bordes']
             imagenes_filtradas = procesador.aplicar_filtros(filtros_a_aplicar)
             
             # Crear carpetas si no existen
@@ -167,15 +157,16 @@ if __name__ == "__main__":
             ruta_imagenSF = os.path.join(ruta_carpetaSF, f'imagen_{indice}.png')
             
             # Verificar si las imágenes existen y no son None
-            if procesador.imagen_pre_filtrada is not None and procesador.imagen_sin_fondo is not None:
-                if isinstance(procesador.imagen_pre_filtrada, np.ndarray) and isinstance(procesador.imagen_sin_fondo, np.ndarray):
-                    cv2.imwrite(ruta_imagen, procesador.imagen_pre_filtrada)
-                    cv2.imwrite(ruta_imagenSF, procesador.imagen_sin_fondo)
+            # if procesador.imagen_pre_filtrada is not None and procesador.imagen_sin_fondo is not None:
+            #     if isinstance(procesador.imagen_pre_filtrada, np.ndarray) and isinstance(procesador.imagen_sin_fondo, np.ndarray):
+            #         cv2.imwrite(ruta_imagen, procesador.imagen_pre_filtrada)
+            #         cv2.imwrite(ruta_imagenSF, procesador.imagen_sin_fondo)
             
             imagenes_por_verdura.append(imagenes_filtradas)
 
         # Mostrar todas las imágenes en una nueva ventana y guardar la referencia
         ventana_actual = mostrar_imagenes("Imágenes Filtradas", imagenes_por_verdura)
+        input("Enter para continuar...")
         root.update()
 
         #input("Enter para continuar...")

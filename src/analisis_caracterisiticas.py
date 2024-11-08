@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-
+from sklearn.manifold import TSNE
+import umap
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -10,7 +11,7 @@ data = pd.read_csv('momentos_hu2.csv')
 print(data.head())
 print(data.columns)
 data.columns = data.columns.str.strip()
-hu_momentos_columnas = ['Hu2'] + ['Mean_B', 'Mean_G', 'Mean_R']
+hu_momentos_columnas = ['Hu0','Hu2','Hu4','Hu6'] + ['Mean_B', 'Mean_G', 'Mean_R']
 missing_columns = [col for col in hu_momentos_columnas if col not in data.columns]
 if missing_columns:
     raise KeyError(f"Missing columns in the DataFrame: {missing_columns}")
@@ -19,6 +20,7 @@ X = data[hu_momentos_columnas].values
 
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
+
 
 pca = PCA(n_components=3)
 X_pca = pca.fit_transform(X_scaled)
@@ -32,7 +34,7 @@ for i, var in enumerate(pca.explained_variance_ratio_):
 # Codificar los nombres de las verduras
 label_encoder = LabelEncoder()
 labels = label_encoder.fit_transform(data['Nombre'])
-    
+
 # Calculate variance along each PC for each vegetable
 print("\nVariance along each Principal Component for each vegetable:")
 for vegetable in data['Nombre'].unique():

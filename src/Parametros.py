@@ -12,15 +12,14 @@ def calcular_momentos_hu(contorno,momentos_elegidos):
     return momentos_hu
 
 def guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color):
+    # Verify that the headers include the correct Hu moments
+    encabezados = ['Nombre', 'Hu2', 'Hu4', 'Hu6', 'Mean_B', 'Mean_G', 'Mean_R']
+    crear_archivo_csv(ruta_csv, encabezados)
     datos = [etiqueta] + hu_momentos + list(mean_color)
     agregar_fila_csv(ruta_csv, datos)
 
-def calcular_color_promedio(imagen_sin_fondo):
-    # Convert image to HSV color space
-    hsv_image = cv2.cvtColor(imagen_sin_fondo, cv2.COLOR_BGR2HSV)
-    # Create mask to select non-black pixels
-    mask = cv2.inRange(hsv_image, (0, 0, 1), (180, 255, 255))
-    # Calculate the mean color using the mask
+def calcular_color_promedio(imagen_sin_fondo, mask):
+    # Calculate the mean color using the provided mask
     mean_val = cv2.mean(imagen_sin_fondo, mask=mask)
     mean_color = mean_val[:3]  # B, G, R
     return mean_color
