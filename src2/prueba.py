@@ -41,7 +41,7 @@ class ProcesadorImagen:
         self.ventana_principal.withdraw()  # Ocultar la ventana principal
         self.seleccionar_nueva_carpeta()
         self.continuar_procesamiento = True  # Flag to control processing
-
+        self.encabezado = None
     def seleccionar_nueva_carpeta(self):
         self.ruta_imagenes = self.obtener_ruta_imagenes()
         self.etiqueta = os.path.basename(self.ruta_imagenes)  # Set label based on folder name
@@ -123,7 +123,7 @@ class ProcesadorImagen:
                         
                         # Ask for label and save to CSV
                         etiqueta = self.etiqueta  # Use folder name as label
-                        guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color)
+                        guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color,encabezado)
                         imagenes_progreso.append(imagen_saturada_brillo.copy())
                     else:
                         logging.warning("No se encontraron contornos en la imagen.")
@@ -217,6 +217,7 @@ if __name__ == '__main__':
     procesador = ProcesadorImagen()
     filtros_a_aplicar = ['gaussian','gris','binarizedADAPTIVE','morfologico','contornos']
     momentos_elegidos = [0,1,2,3,4,5,6]  # Example: 2nd, 4th, and 6th Hu moments
+    procesador.encabezado = ['Nombre'] + [f'Hu{i}' for i in momentos_elegidos] + ['Mean_B', 'Mean_G', 'Mean_R']
     ruta_csv = 'resultados.csv'
 
     def procesar_imagenes():
@@ -224,10 +225,10 @@ if __name__ == '__main__':
             while procesador.continuar_procesamiento:
                 while True:
                     imagenes_progreso = procesador.procesar_siguiente_imagen(filtros_a_aplicar, momentos_elegidos, ruta_csv)
-                    if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
+                    # if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
+                    #     break
+                    if not imagenes_progreso:
                         break
-                    # if not imagenes_progreso:
-                    # #     break
                 # Offer to select a new folder after processing all images
                 respuesta = tk.messagebox.askyesno("Nueva carpeta", "¿Desea seleccionar una nueva carpeta?")
                 if respuesta:

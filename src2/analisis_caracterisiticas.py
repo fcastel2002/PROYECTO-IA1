@@ -11,7 +11,7 @@ data = pd.read_csv('resultados.csv')
 print(data.head())
 print(data.columns)
 data.columns = data.columns.str.strip()
-hu_momentos_columnas =['Hu2']+['Mean_B', 'Mean_G', 'Mean_R']
+hu_momentos_columnas =['Hu2','Hu3']+['Mean_B', 'Mean_G', 'Mean_R']
 missing_columns = [col for col in hu_momentos_columnas if col not in data.columns]
 if missing_columns:
     raise KeyError(f"Missing columns in the DataFrame: {missing_columns}")
@@ -66,5 +66,8 @@ ax.add_artist(legend1)
 ax.set_xlabel('PC1')
 ax.set_ylabel('PC2')
 ax.set_zlabel('PC3')
+
+# Guardar los resultados del PCA en un archivo .csv
+pca_df.to_csv('pca_resultados.csv', index=False)
 
 plt.show()

@@ -11,7 +11,7 @@ def calcular_momentos_hu(contorno,momentos_elegidos):
     
     return momentos_hu
 
-def guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color):
+def guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color,encabezado):
     # Verify that the headers include the correct Hu moments
     encabezados = ['Nombre', 'Hu2', 'Hu4', 'Hu6', 'Mean_B', 'Mean_G', 'Mean_R']
     crear_archivo_csv(ruta_csv, encabezados)
