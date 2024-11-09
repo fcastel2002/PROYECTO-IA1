@@ -7,17 +7,46 @@ import numpy as np
 from Archivos import *
 import sys
 import logging  # Add this import
+from Parametros import calcular_momentos_hu, calcular_color_promedio, guardar_momentos_hu
 
 # Configure logging at the beginning of the file
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def aumentar_saturacion(imagen, mask, factor=1.8):
+    # Convertir la imagen a espacio de color HSV
+    imagen_hsv = cv2.cvtColor(imagen, cv2.COLOR_BGR2HSV)
+    
+    # Aumentar la saturación solo en la región del contorno
+    imagen_hsv[:, :, 1] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 1] * factor, 0, 255), imagen_hsv[:, :, 1])
+    
+    # Convertir de nuevo a espacio de color BGR
+    imagen_bgr = cv2.cvtColor(imagen_hsv, cv2.COLOR_HSV2BGR)
+    return imagen_bgr
+
+def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.2, factor_brillo=1.7):
+    # Convertir la imagen a espacio de color HSV
+    imagen_hsv = cv2.cvtColor(imagen, cv2.COLOR_BGR2HSV)
+    
+    # Aumentar la saturación y el brillo solo en la región del contorno
+    imagen_hsv[:, :, 1] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 1] * factor_saturacion, 0, 255), imagen_hsv[:, :, 1])
+    imagen_hsv[:, :, 2] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 2] * factor_brillo, 0, 255), imagen_hsv[:, :, 2])
+    
+    # Convertir de nuevo a espacio de color BGR
+    imagen_bgr = cv2.cvtColor(imagen_hsv, cv2.COLOR_HSV2BGR)
+    return imagen_bgr
+
 class ProcesadorImagen:
     def __init__(self):
-        self.ruta_imagenes = self.obtener_ruta_imagenes()
-        self.imagenes = self.cargar_imagenes(self.ruta_imagenes)
-        self.indice_actual = 0
         self.ventana_principal = tk.Tk()
         self.ventana_principal.withdraw()  # Ocultar la ventana principal
+        self.seleccionar_nueva_carpeta()
+        self.continuar_procesamiento = True  # Flag to control processing
+
+    def seleccionar_nueva_carpeta(self):
+        self.ruta_imagenes = self.obtener_ruta_imagenes()
+        self.etiqueta = os.path.basename(self.ruta_imagenes)  # Set label based on folder name
+        self.imagenes = self.cargar_imagenes(self.ruta_imagenes)
+        self.indice_actual = 0
 
     def obtener_ruta_imagenes(self):
         # Código para solicitar al usuario la ruta de las imágenes
@@ -35,7 +64,7 @@ class ProcesadorImagen:
                     imagenes.append(imagen)
         return imagenes
 
-    def procesar_siguiente_imagen(self, filtros_a_aplicar):
+    def procesar_siguiente_imagen(self, filtros_a_aplicar, momentos_elegidos, ruta_csv):
         if self.indice_actual >= len(self.imagenes):
             logging.info('All images have been processed.')
             return None
@@ -80,14 +109,29 @@ class ProcesadorImagen:
                     if contornos:
                         max_contorno = max(contornos, key=cv2.contourArea)
                         imagen_procesada = imagen_original.copy()
-                        cv2.drawContours(imagen_procesada, [max_contorno], -1, (0, 255, 0), 9)
+                        cv2.drawContours(imagen_procesada, [max_contorno], -1, (0, 255, 0), 4)
+                        
+                        # Calculate Hu moments and mean color
+                        hu_momentos = calcular_momentos_hu(max_contorno, momentos_elegidos)
+                        mask = np.zeros(imagen_original.shape[:2], dtype=np.uint8)
+                        cv2.drawContours(mask, [max_contorno], -1, 255, thickness=cv2.FILLED)
+                        
+                        # Increase saturation and brightness within the contour
+                        imagen_saturada_brillo = aumentar_saturacion_brillo(imagen_original, mask)
+                        
+                        mean_color = calcular_color_promedio(imagen_saturada_brillo, mask)
+                        
+                        # Ask for label and save to CSV
+                        etiqueta = self.etiqueta  # Use folder name as label
+                        guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color)
+                        imagenes_progreso.append(imagen_saturada_brillo.copy())
                     else:
                         logging.warning("No se encontraron contornos en la imagen.")
                 else:
                     logging.error(f'Filtro "{filtro}" no reconocido')
                     continue  # Skip unrecognized filters
                 imagenes_progreso.append(imagen_procesada.copy())
-
+                
             self.indice_actual += 1
             return imagenes_progreso
         except Exception as e:
@@ -124,7 +168,7 @@ class ProcesadorImagen:
 
                 # Redimensionar si es necesario
                 altura, ancho = imagen.shape[:2]
-                max_size = 400  # Tamaño más pequeño para mostrar más imágenes
+                max_size = 200  # Tamaño más pequeño para mostrar más imágenes
                 if altura > max_size or ancho > max_size:
                     ratio = min(max_size / altura, max_size / ancho)
                     nuevo_ancho = int(ancho * ratio)
@@ -171,25 +215,35 @@ class ProcesadorImagen:
 
 if __name__ == '__main__':
     procesador = ProcesadorImagen()
-    # Actualizar la lista de filtros a aplicar
     filtros_a_aplicar = ['gaussian','gris','binarizedADAPTIVE','morfologico','contornos']
+    momentos_elegidos = [0,1,2,3,4,5,6]  # Example: 2nd, 4th, and 6th Hu moments
+    ruta_csv = 'resultados.csv'
 
-    try:
-        while True:
-            imagenes_progreso = procesador.procesar_siguiente_imagen(filtros_a_aplicar)
-            if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
-                break
+    def procesar_imagenes():
+        try:
+            while procesador.continuar_procesamiento:
+                while True:
+                    imagenes_progreso = procesador.procesar_siguiente_imagen(filtros_a_aplicar, momentos_elegidos, ruta_csv)
+                    if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
+                        break
+                    # if not imagenes_progreso:
+                    # #     break
+                # Offer to select a new folder after processing all images
+                respuesta = tk.messagebox.askyesno("Nueva carpeta", "¿Desea seleccionar una nueva carpeta?")
+                if respuesta:
+                    procesador.seleccionar_nueva_carpeta()
+                else:
+                    procesador.continuar_procesamiento = False
+                    break
+                        
+        except KeyboardInterrupt:
+            logging.info("Programa terminado por el usuario")
+        except Exception as e:
+            logging.error(f'Error: {e}')
+        finally:
+            procesador.ventana_principal.quit()  # Exit the main loop
 
-            # === Cambio: Eliminar solicitud de entrada por consola ===
-            # respuesta = input("¿Desea procesar la siguiente imagen? (s/n): ").lower()
-            # if respuesta != 's':
-            #     break
-            # ======================================================
-
-    except KeyboardInterrupt:
-        logging.info("Programa terminado por el usuario")
-    except Exception as e:
-        logging.error(f'Error: {e}')
-    finally:
-        # Asegurarse de cerrar la ventana principal al finalizar
-        procesador.ventana_principal.destroy()
+    # Run the image processing in a separate thread to avoid blocking the main loop
+    import threading
+    threading.Thread(target=procesar_imagenes).start()
+    procesador.ventana_principal.mainloop()
