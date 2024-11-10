@@ -2,8 +2,6 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.manifold import TSNE
-import umap
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -68,6 +66,6 @@ ax.set_ylabel('PC2')
 ax.set_zlabel('PC3')
 
 # Guardar los resultados del PCA en un archivo .csv
-pca_df.to_csv('pca_resultados.csv', index=False)
+#pca_df.to_csv('pca_resultados.csv', index=False)
 
 plt.show()
