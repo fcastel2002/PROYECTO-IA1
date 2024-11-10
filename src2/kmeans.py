@@ -86,10 +86,10 @@ class KmeansClustering:
 
 if __name__ == "__main__":
     # Cargar datos completos del CSV
-    for _ in range(10):  
+    for _ in range(1):  
         df_resultados = pd.read_csv('resultados.csv')
         
-        caracteristicas = ['Hu2','Hu3','Hu6','Hu7','Mean_B','Mean_G','Mean_R']
+        caracteristicas = ['Hu2','Hu3','Mean_B','Mean_G','Mean_R']
         # Extraer características para el clustering (todas excepto 'Nombre')
         X = df_resultados[caracteristicas].values
         

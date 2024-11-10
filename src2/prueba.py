@@ -50,7 +50,7 @@ class ProcesadorImagen:
 
     def obtener_ruta_imagenes(self):
         # Código para solicitar al usuario la ruta de las imágenes
-        ruta = filedialog.askdirectory(title='Seleccione la ruta de las imágenes')
+        ruta = filedialog.askdirectory(initialdir='../anexos/imagenes_correctas/',title='Seleccione la ruta de las imágenes')
         return ruta
 
     def cargar_imagenes(self, ruta):
@@ -225,10 +225,10 @@ if __name__ == '__main__':
             while procesador.continuar_procesamiento:
                 while True:
                     imagenes_progreso = procesador.procesar_siguiente_imagen(filtros_a_aplicar, momentos_elegidos, ruta_csv)
-                    # if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
-                    #     break
-                    if not imagenes_progreso:
+                    if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
                         break
+                    #if not imagenes_progreso:
+                        #break
                 # Offer to select a new folder after processing all images
                 respuesta = tk.messagebox.askyesno("Nueva carpeta", "¿Desea seleccionar una nueva carpeta?")
                 if respuesta:
