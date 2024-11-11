@@ -1,37 +1,28 @@
-import os
-import cv2
 import csv
+import os
 
-def obtener_imagenes_por_verdura(ruta_base, carpetas, indice):
-    imagenes_por_verdura = []
-    for carpeta in carpetas:
-        ruta_carpeta = os.path.join(ruta_base, carpeta)
-        if not os.path.exists(ruta_carpeta):
-            print(f'La carpeta {ruta_carpeta} no existe.')
-            continue
+class Archivos:
+    @staticmethod
+    def guardar_csv(nombre_archivo, datos, cabeceras=None):
+        modo = 'a' if os.path.exists(nombre_archivo) else 'w'
+        try:
+            with open(nombre_archivo, mode=modo, newline='') as archivo_csv:
+                escritor = csv.writer(archivo_csv)
+                if cabeceras and modo == 'w':
+                    escritor.writerow(cabeceras)
+                escritor.writerows(datos)
+            print(f"Datos guardados en {nombre_archivo}.")
+        except Exception as e:
+            print(f"Error al guardar datos en {nombre_archivo}: {e}")
 
-        archivos = os.listdir(ruta_carpeta)
-        if not archivos:
-            print(f'La carpeta {ruta_carpeta} está vacía.')
-            continue
-
-        imagen_path = os.path.join(ruta_carpeta, archivos[indice % len(archivos)])
-        imagen = cv2.imread(imagen_path)
-        if imagen is None:
-            print(f'No se pudo leer la imagen {imagen_path}.')
-            continue
-
-        imagenes_por_verdura.append(imagen)
-    return imagenes_por_verdura
-
-def crear_archivo_csv(ruta_archivo, encabezados):
-    if not os.path.exists(ruta_archivo):
-        with open(ruta_archivo, 'w', newline='') as archivo_csv:
-            escritor = csv.writer(archivo_csv)
-            escritor.writerow(encabezados)
-
-def agregar_fila_csv(ruta_archivo, datos):
-    with open(ruta_archivo, 'a', newline='') as archivo_csv:
-        escritor = csv.writer(archivo_csv)
-        escritor.writerow(datos)
-            
+    @staticmethod
+    def leer_csv(nombre_archivo):
+        try:
+            with open(nombre_archivo, mode='r') as archivo_csv:
+                lector = csv.reader(archivo_csv)
+                datos = [fila for fila in lector]
+            print(f"Datos leídos de {nombre_archivo}.")
+            return datos
+        except FileNotFoundError:
+            print(f"Error: El archivo '{nombre_archivo}' no existe.")
+            return []

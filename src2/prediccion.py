@@ -7,6 +7,23 @@ from Parametros import calcular_momentos_hu, calcular_color_promedio, guardar_mo
 import subprocess
 import os
 
+def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.03, factor_brillo=1.7):
+    # Convertir la imagen a espacio de color HSV
+    imagen_hsv = cv2.cvtColor(imagen, cv2.COLOR_BGR2HSV)
+    
+    # Aumentar la saturación y el brillo solo en la región del contorno
+    imagen_hsv[:, :, 1] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 1] * factor_saturacion, 0, 255), imagen_hsv[:, :, 1])
+    imagen_hsv[:, :, 2] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 2] * factor_brillo, 0, 255), imagen_hsv[:, :, 2])
+    
+    # Convertir de nuevo a espacio de color BGR
+    imagen_bgr = cv2.cvtColor(imagen_hsv, cv2.COLOR_HSV2BGR)
+    return imagen_bgr
+
+def calcular_color_promedio_normalizado(imagen, mask):
+    # Normalizar la imagen
+    imagen_normalizada = cv2.normalize(imagen, None, 0, 255, cv2.NORM_MINMAX)
+    return calcular_color_promedio(imagen_normalizada, mask)
+
 class Analisis:
     def __init__(self):
         pass
@@ -33,7 +50,7 @@ class Analisis:
         ventana = tk.Tk()
         ventana.withdraw()
         carpeta = filedialog.askdirectory(
-            initialdir='../anexos/imagenes_mias',
+            initialdir='../anexos/imagenes_correctas',
             title='Seleccione la carpeta con imágenes'
         )
         ventana.destroy()
@@ -83,7 +100,7 @@ class Analisis:
         ventana = tk.Tk()
         ventana.withdraw()
         archivo = filedialog.askopenfilename(
-            initialdir='../anexos/imagenes_mias',
+            initialdir='../anexos/imagenes_correctas',
             title='Seleccione la imagen a analizar',
             filetypes=[('Image Files', '*.png *.jpg *.jpeg')]
         )
@@ -122,7 +139,8 @@ class Analisis:
                         cv2.drawContours(mask, [max_contorno], -1, 255, thickness=cv2.FILLED)
                         # Calcular momentos de Hu y color promedio
                         hu_momentos = calcular_momentos_hu(max_contorno, momentos_elegidos)
-                        mean_color = calcular_color_promedio(imagen_original, mask)
+                        imagen_pospro = aumentar_saturacion_brillo(imagen_original, mask)
+                        mean_color = calcular_color_promedio(imagen_pospro, mask)
                         # Guardar resultados en CSV
                         encabezado = ['Nombre'] + [f'Hu{i+1}' for i in momentos_elegidos] + ['Mean_B', 'Mean_G', 'Mean_R']
                         guardar_momentos_hu(ruta_csv, 'Imagen', hu_momentos, mean_color, encabezado)
@@ -138,26 +156,43 @@ class Analisis:
             logging.error(f'Error al procesar la imagen: {e}')
             return None
 
+class Estandarizacion:
+    def __init__(self, features_df):
+        self.mean = features_df.mean()
+        self.std = features_df.std()
+
+    def estandarizar(self, features):
+        return (features - self.mean) / self.std
+
 class Predictor:
     def __init__(self):
-        pass
+        self.centroides_df = pd.read_csv('centroides_normalizados.csv')
+        self.centroides = self.centroides_df.iloc[:, 1:].values  # Omitir columna 'Cluster'
+        self.clusters = self.centroides_df['Cluster'].values
 
     def predecir_cluster(self, features):
         try:
-            # Leer centroides desde CSV
-            centroides_df = pd.read_csv('centroides.csv')
-            centroides = centroides_df.iloc[:,1:].values  # Omitir columna 'Cluster'
-            clusters = centroides_df['Cluster'].values
+            # Leer las características para calcular la media y desviación estándar
+            features_df = pd.DataFrame([features], columns=[f'Feature_{i+1}' for i in range(len(features))])
+            estandarizador = Estandarizacion(features)
+            
+            # Estandarizar las características
+            features_estandarizadas = estandarizador.estandarizar(features)
+            
+            # Guardar las características estandarizadas en un archivo CSV
+            features_estandarizadas_df = pd.DataFrame([features_estandarizadas], columns=[f'Feature_{i+1}' for i in range(len(features_estandarizadas))])
+            features_estandarizadas_df.to_csv('clustering_std.csv', mode='a', header=not os.path.exists('clustering_std.csv'), index=False)
+            
             # Calcular distancias y encontrar el clúster más cercano
-            distances = np.linalg.norm(centroides - features, axis=1)
+            distances = np.linalg.norm(self.centroides - features_estandarizadas, axis=1)
             idx_min = np.argmin(distances)
-            return clusters[idx_min]
+            return self.clusters[idx_min]
         except Exception as e:
             print(f"Error al predecir clúster: {e}")
             return None
 
 def mostrar_resultados(resultados, predictor):
-    etiquetas = ['camote', 'papa', 'berenjena', 'zanahoria']
+    etiquetas = ['papa', 'berenjena', 'camote', 'zanahoria']
     print("\nResultados de la clasificación:")
     print("="*50)
     print(f"{'Nombre de archivo':<30} {'Clasificación':<20}")
@@ -186,8 +221,8 @@ def main():
         return
     
     filtros_a_aplicar = ['gaussian', 'gris', 'binarizedADAPTIVE', 'morfologico', 'contornos']
-    momentos_elegidos = [1, 2]
-    ruta_csv = 'momentos_hu.csv'
+    momentos_elegidos = [1,2]
+    ruta_csv = 'predicciones.csv'
     
     resultados = analisis.procesar_carpeta(ruta_carpeta, filtros_a_aplicar, momentos_elegidos, ruta_csv)
     if not resultados:

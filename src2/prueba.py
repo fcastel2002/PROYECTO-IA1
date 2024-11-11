@@ -12,18 +12,9 @@ from Parametros import calcular_momentos_hu, calcular_color_promedio, guardar_mo
 # Configure logging at the beginning of the file
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def aumentar_saturacion(imagen, mask, factor=1.8):
-    # Convertir la imagen a espacio de color HSV
-    imagen_hsv = cv2.cvtColor(imagen, cv2.COLOR_BGR2HSV)
-    
-    # Aumentar la saturación solo en la región del contorno
-    imagen_hsv[:, :, 1] = np.where(mask == 255, np.clip(imagen_hsv[:, :, 1] * factor, 0, 255), imagen_hsv[:, :, 1])
-    
-    # Convertir de nuevo a espacio de color BGR
-    imagen_bgr = cv2.cvtColor(imagen_hsv, cv2.COLOR_HSV2BGR)
-    return imagen_bgr
 
-def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.2, factor_brillo=1.7):
+
+def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.03, factor_brillo=1.7):
     # Convertir la imagen a espacio de color HSV
     imagen_hsv = cv2.cvtColor(imagen, cv2.COLOR_BGR2HSV)
     
@@ -34,6 +25,11 @@ def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.2, factor_brill
     # Convertir de nuevo a espacio de color BGR
     imagen_bgr = cv2.cvtColor(imagen_hsv, cv2.COLOR_HSV2BGR)
     return imagen_bgr
+
+def calcular_color_promedio_normalizado(imagen, mask):
+    # Normalizar la imagen
+    imagen_normalizada = cv2.normalize(imagen, None, 0, 255, cv2.NORM_MINMAX)
+    return calcular_color_promedio(imagen_normalizada, mask)
 
 class ProcesadorImagen:
     def __init__(self):
@@ -67,7 +63,7 @@ class ProcesadorImagen:
     def procesar_siguiente_imagen(self, filtros_a_aplicar, momentos_elegidos, ruta_csv):
         if self.indice_actual >= len(self.imagenes):
             logging.info('All images have been processed.')
-            return None
+            return None, None
 
         try:
             imagen = self.imagenes[self.indice_actual]
@@ -79,30 +75,16 @@ class ProcesadorImagen:
                 logging.info(f'Applying filter: {filtro}')
                 if filtro == 'gaussian':
                     imagen_procesada = cv2.GaussianBlur(imagen_procesada, (13,13), 0)
-                elif filtro == 'mean':
-                    imagen_procesada = cv2.blur(imagen_procesada, (13,13))
+
                 elif filtro == 'gris':
                     imagen_procesada = cv2.cvtColor(imagen_procesada, cv2.COLOR_BGR2GRAY)
-                elif filtro == 'binarized':
-                    _, imagen_procesada = cv2.threshold(imagen_procesada, 127, 255, cv2.THRESH_BINARY)
-                elif filtro == "binarizedINV":
-                    _, imagen_procesada = cv2.threshold(imagen_procesada, 127, 255, cv2.THRESH_BINARY_INV)
                 elif filtro == 'binarizedADAPTIVE':
                     imagen_procesada = cv2.adaptiveThreshold(imagen_procesada, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 31, 6)
-                elif filtro == 'sobel':
-                    imagen_procesada = cv2.Sobel(imagen_procesada, cv2.CV_64F, 1, 0, ksize=5)
-                    imagen_procesada = cv2.normalize(imagen_procesada, None, 0, 255, cv2.NORM_MINMAX)
-                    imagen_procesada = np.uint8(imagen_procesada)
-                elif filtro == 'laplacian':
-                    imagen_procesada = cv2.Laplacian(imagen_procesada, cv2.CV_64F)
-                    imagen_procesada = cv2.convertScaleAbs(imagen_procesada)
+
                 elif filtro == 'morfologico':
                     kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (11,11))
                     imagen_procesada = cv2.morphologyEx(imagen_procesada, cv2.MORPH_DILATE, kernel)
-                    
-                elif filtro == 'canny':
-                    imagen_gris = imagen_procesada
-                    imagen_procesada = cv2.Canny(imagen_gris, 127, 255)
+
                 elif filtro == 'contornos':
                     contornos = cv2.findContours(imagen_procesada, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                     contornos = contornos[0] if len(contornos) == 2 else contornos[1]
@@ -119,11 +101,11 @@ class ProcesadorImagen:
                         # Increase saturation and brightness within the contour
                         imagen_saturada_brillo = aumentar_saturacion_brillo(imagen_original, mask)
                         
-                        mean_color = calcular_color_promedio(imagen_saturada_brillo, mask)
+                        mean_color = calcular_color_promedio_normalizado(imagen_saturada_brillo, mask)
                         
                         # Ask for label and save to CSV
                         etiqueta = self.etiqueta  # Use folder name as label
-                        guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color,encabezado)
+                        guardar_momentos_hu(ruta_csv, etiqueta, hu_momentos, mean_color,self.encabezado)
                         imagenes_progreso.append(imagen_saturada_brillo.copy())
                     else:
                         logging.warning("No se encontraron contornos en la imagen.")
@@ -133,13 +115,13 @@ class ProcesadorImagen:
                 imagenes_progreso.append(imagen_procesada.copy())
                 
             self.indice_actual += 1
-            return imagenes_progreso
+            return imagenes_progreso, mean_color  # Return mean_color along with images
         except Exception as e:
             logging.error(f'Error processing image at index {self.indice_actual}: {e}')
             self.indice_actual += 1
-            return None
+            return None, None
 
-    def mostrar_imagenes(self, imagenes):
+    def mostrar_imagenes(self, imagenes, mean_color=None):
         if imagenes is None:
             print("No hay más imágenes para procesar")
             return False
@@ -190,6 +172,12 @@ class ProcesadorImagen:
                 logging.error(f'Error displaying images: {e}')
                 continue
 
+        # Mostrar el color promedio
+        if mean_color is not None:
+            mean_color_hex = f'#{int(mean_color[2]):02x}{int(mean_color[1]):02x}{int(mean_color[0]):02x}'
+            mean_color_label = Label(ventana, text=f"Mean Color: B={mean_color[0]}, G={mean_color[1]}, R={mean_color[2]}", bg=mean_color_hex, fg='white')
+            mean_color_label.pack(pady=5)
+
         # Botón para cerrar la ventana
         def cerrar_ventana():
             self.ventana_principal.destroy()  # Cerrar la ventana principal
@@ -224,11 +212,11 @@ if __name__ == '__main__':
         try:
             while procesador.continuar_procesamiento:
                 while True:
-                    imagenes_progreso = procesador.procesar_siguiente_imagen(filtros_a_aplicar, momentos_elegidos, ruta_csv)
-                    if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso):
+                    imagenes_progreso, mean_color = procesador.procesar_siguiente_imagen(filtros_a_aplicar, momentos_elegidos, ruta_csv)
+                    #if not imagenes_progreso or not procesador.mostrar_imagenes(imagenes_progreso, mean_color):
+                    #    break
+                    if not imagenes_progreso:
                         break
-                    #if not imagenes_progreso:
-                        #break
                 # Offer to select a new folder after processing all images
                 respuesta = tk.messagebox.askyesno("Nueva carpeta", "¿Desea seleccionar una nueva carpeta?")
                 if respuesta:

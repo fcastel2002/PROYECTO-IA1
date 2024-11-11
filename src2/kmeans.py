@@ -99,7 +99,7 @@ if __name__ == "__main__":
         
         # Añadir la columna de clusters al dataframe original
         df_resultados['Cluster'] = clusters
-        
+        df_resultados['label'] = df_resultados['Nombre']
         # Guardar resultados del clustering
         df_resultados.to_csv('resultados_clustering.csv', index=False)
         
