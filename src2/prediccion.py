@@ -6,6 +6,9 @@ import cv2
 from Parametros import calcular_momentos_hu, calcular_color_promedio, guardar_momentos_hu
 import subprocess
 import os
+# Add imports for PIL and Tkinter image display
+from PIL import Image, ImageTk
+import tkinter as tk
 
 def aumentar_saturacion_brillo(imagen, mask, factor_saturacion=1.03, factor_brillo=1.7):
     # Convertir la imagen a espacio de color HSV
@@ -145,13 +148,23 @@ class Analisis:
                         encabezado = ['Nombre'] + [f'Hu{i+1}' for i in momentos_elegidos] + ['Mean_B', 'Mean_G', 'Mean_R']
                         guardar_momentos_hu(ruta_csv, 'Imagen', hu_momentos, mean_color, encabezado)
                         # Retornar características para predicción
+                                # Replace cv2.imshow, cv2.waitKey, and cv2.destroyAllWindows with Tkinter window
+                        root = tk.Tk()
+                        root.title('Imagen Filtrada')
+                        imagen_rgb = cv2.cvtColor(imagen_procesada, cv2.COLOR_BGR2RGB)
+                        img_pil = Image.fromarray(imagen_rgb)
+                        img_tk = ImageTk.PhotoImage(img_pil)
+                        label = tk.Label(root, image=img_tk)
+                        label.pack()
+                        root.mainloop()
+                        
                         return np.array(hu_momentos + list(mean_color))
                     else:
                         logging.warning("No se encontraron contornos en la imagen.")
                         return None
                 else:
                     logging.error(f'Filtro "{filtro}" no reconocido')
-            return None
+    
         except Exception as e:
             logging.error(f'Error al procesar la imagen: {e}')
             return None

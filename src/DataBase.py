@@ -25,8 +25,20 @@ class DataBase:
         longitud_correcta = len(self.datos[0])
         datos_filtrados = [fila for fila in self.datos if len(fila) == longitud_correcta]
 
-        # Definir cabeceras con la longitud correcta
-        cabeceras = [f"MFCC_{i}" for i in range(13)] + [f"ZCR_{i}" for i in range(10)] + ["Etiqueta"]
+        # Cabeceras de MFCC y ZCR segmentados
+        cabeceras = []
+        for i in range(5):  # Para cada segmento
+            for j in range(3):  # Para cada coeficiente MFCC
+                cabeceras.append(f"MFCC_seg{i+1}_coef{j+1}")
+        
+        # Añadir cabeceras para ZCR
+        #cabeceras.extend([f"ZCR_seg{i+1}" for i in range(5)])
+
+        # Añadir cabeceras para los formantes
+        cabeceras.extend(["Formante_1", "Formante_2", "Formante_3"])
+
+        # Añadir columna de etiqueta
+        cabeceras.append("Etiqueta")
 
         # Guardar los datos filtrados en el archivo CSV
         Archivos.guardar_csv(nombre_archivo, datos_filtrados, cabeceras)
@@ -34,6 +46,9 @@ class DataBase:
         
         # Normalización opcional
         self.normalizar_archivo(nombre_archivo)
+        
+        # Limpiar los datos después de guardar
+        self.datos = []
 
     def normalizar_archivo(self, archivo_origen):
         """Lee un archivo CSV, normaliza sus características y guarda un nuevo archivo normalizado"""
@@ -44,6 +59,10 @@ class DataBase:
 
         cabeceras = datos[0]
         datos_validados = [fila for fila in datos[1:] if len(fila) == len(cabeceras)]
+        
+        if not datos_validados:
+            print("Error: No hay datos válidos para normalizar")
+            return
 
         # Convertir las filas en características y etiquetas
         X = np.array([fila[:-1] for fila in datos_validados], dtype=float)
@@ -51,7 +70,10 @@ class DataBase:
 
         media = np.nanmean(X, axis=0)
         desv_std = np.nanstd(X, axis=0)
-        desv_std[desv_std == 0] = 1  # Evita división por cero en características constantes
+        
+        # Asegurar que desv_std sea un array
+        desv_std = np.atleast_1d(desv_std)
+        desv_std = np.where(desv_std == 0, 1, desv_std)  # Evita división por cero
         
         # Normalizar las características
         X_norm = (X - media) / desv_std

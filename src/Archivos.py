@@ -4,7 +4,7 @@ import os
 class Archivos:
     @staticmethod
     def guardar_csv(nombre_archivo, datos, cabeceras=None):
-        modo = 'a' if os.path.exists(nombre_archivo) else 'w'
+        modo = 'w' if os.path.exists(nombre_archivo) else 'w'
         try:
             with open(nombre_archivo, mode=modo, newline='') as archivo_csv:
                 escritor = csv.writer(archivo_csv)
