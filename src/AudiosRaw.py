@@ -10,8 +10,8 @@ class AudiosRaw:
         self.frecuencia_muestreo = frecuencia_muestreo
         self.audio = None
         self.start_time = None
-        self.counter = 0
-        self.folder_path = '../anexos/audios_raw/'
+        self.counter = 7
+        self.folder_path = '../anexos/db/audio/zanahoria'
         if not os.path.exists(self.folder_path):
             os.makedirs(self.folder_path)
 
@@ -45,8 +45,16 @@ class AudiosRaw:
             elif keyboard.is_pressed('esc'):
                 print("Saliendo...")
                 break
-
+    def renombrar_archivos(self, nuevo_prefijo="zanahoria"):
+            archivos = [f for f in os.listdir(self.folder_path) if f.endswith('.wav')]
+            for idx, archivo in enumerate(archivos, start=7):
+                nueva_nombre = f"{nuevo_prefijo}_{idx}.wav"
+                os.rename(
+                    os.path.join(self.folder_path, archivo),
+                    os.path.join(self.folder_path, nueva_nombre)
+                )
+                print(f"Renombrado: {archivo} a {nueva_nombre}")
 # Example usage
 if __name__ == "__main__":
     grabador = AudiosRaw()
-    grabador.iniciar()
+    grabador.renombrar_archivos()

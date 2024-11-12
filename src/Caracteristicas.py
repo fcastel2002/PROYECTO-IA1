@@ -1,5 +1,6 @@
 import numpy as np
 import librosa
+import soundfile as sf  # Asegúrate de tener instalado la biblioteca soundfile
 
 class Caracteristicas:
     def __init__(self, ruta_audio):
@@ -15,15 +16,34 @@ class Caracteristicas:
         if self.audio is not None and len(self.audio) > 0:
             audio_filtrado_bajo = librosa.effects.preemphasis(self.audio, coef=0.97)
             audio_filtrado_alto = librosa.effects.preemphasis(audio_filtrado_bajo, coef=-0.97)
-            self.audio = audio_filtrado_alto / np.max(np.abs(audio_filtrado_alto))
-            print("Filtros aplicados y volumen normalizado.")
+            # RMS normalization
+            rms = np.sqrt(np.mean(audio_filtrado_alto**2))
+            if rms > 0:
+                self.audio = audio_filtrado_alto / rms / 3
+            else:
+                self.audio = audio_filtrado_alto
+            print("Filtros aplicados y volumen normalizado con RMS.")
 
-    def recortar_por_volumen(self, umbral=0.05):
+    def recortar_por_volumen(self, umbral=25, margen_ms=200):
         if self.audio is not None and len(self.audio) > 0:
-            top_db = -20 * np.log10(umbral)
-            indices = librosa.effects.trim(self.audio, top_db=top_db)[1]
-            self.audio = self.audio[indices[0]:indices[1]]
-            print("Audio recortado para mantener volumen considerable.")
+            # Duración del margen en muestras
+            margen = int(self.frecuencia_muestreo * (margen_ms / 1000))
+
+            # Realizar el split con el umbral ajustado de top_db
+            intervals = librosa.effects.split(self.audio, top_db=umbral)
+
+            # Crear una lista para almacenar los segmentos con márgenes añadidos
+            recorte_audio = []
+            for start, end in intervals:
+                # Expande los intervalos en ambas direcciones para evitar cortes en palabras lentas
+                start = max(0, start - margen)
+                end = min(len(self.audio), end + margen)
+                recorte_audio.append(self.audio[start:end])
+            
+            # Concatenar todos los intervalos en una sola señal continua
+            self.audio = np.concatenate(recorte_audio)
+            print("Audio recortado con márgenes para mantener volumen considerable.")
+
 
     def reducir_ruido(self, ruido=None):
         if self.audio is not None and len(self.audio) > 0:
@@ -62,6 +82,13 @@ class Caracteristicas:
         else:
             return np.zeros(n_mfcc)
 
+    def guardar_audio_filtrado(self, ruta_guardado):
+        if self.audio is not None and self.frecuencia_muestreo is not None:
+            sf.write(ruta_guardado, self.audio, self.frecuencia_muestreo)
+            print(f"Audio filtrado guardado en {ruta_guardado}")
+        else:
+            print("No hay audio filtrado para guardar.")
+
     def extraer_features(self):
         self.cargar_audio()
         self.aplicar_filtro()
@@ -70,9 +97,9 @@ class Caracteristicas:
 
         # Extracción de características individuales
         mfcc_features = self.extraer_mfcc()
-        zcr_features = self.dividir_y_calcular_zcr()
+        zcr_features = self.dividir_y_calcular_zcr()  # Descomentar esta línea
 
         # Concatenación final asegurada en tamaño fijo
-        self.caracteristicas = np.concatenate((mfcc_features, zcr_features))
+        self.caracteristicas = np.concatenate([mfcc_features, zcr_features])
         print(f"Características extraídas: {self.caracteristicas}")
         return self.caracteristicas
